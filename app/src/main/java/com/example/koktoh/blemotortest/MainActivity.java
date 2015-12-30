@@ -6,6 +6,7 @@ import java.util.TimerTask;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -14,10 +15,12 @@ import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.content.PermissionChecker;
@@ -32,6 +35,8 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private final static String TAG = MainActivity.class.getSimpleName();
+
+    private final static int REQUEST_CODE = 59;
 
     private Button connectBtn = null;
     private Button forward, backward, right, left;
@@ -58,9 +63,10 @@ public class MainActivity extends Activity {
         @Override
         public void onServiceConnected(ComponentName componentName,
                                        IBinder service) {
+            Log.d(TAG, "mBluetoothLeService set");
             mBluetoothLeService = ((RBLService.LocalBinder) service)
                     .getService();
-            characteristicTx = mBluetoothLeService.getSupportedGattService().getCharacteristic(RBLService.UUID_BLE_SHIELD_TX);
+            Log.d(TAG, "mBluetoothLeService seted");
             if (!mBluetoothLeService.initialize()) {
                 Log.e(TAG, "Unable to initialize Bluetooth");
                 finish();
@@ -100,14 +106,22 @@ public class MainActivity extends Activity {
 
         Log.d(TAG, "Start onCreate");
 
-        requestWindowFeature(Window.FEATURE_CUSTOM_TITLE);
         setContentView(R.layout.activity_main);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android M Permission check
+            if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_CODE);
+            }
+        }
 
         connectBtn = (Button) findViewById(R.id.connect);
         connectBtn.setOnClickListener(new OnClickListener() {
 
             @Override
             public void onClick(View v) {
+                Log.d(TAG, "connect button click");
+
                 if (scanFlag == false) {
                     scanLeDevice();
 
@@ -117,10 +131,12 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             if (mDevice != null) {
+                                Log.d(TAG, "mDevice exists");
                                 mDeviceAddress = mDevice.getAddress();
                                 mBluetoothLeService.connect(mDeviceAddress);
                                 scanFlag = true;
                             } else {
+                                Log.d(TAG, "mDevice not exists");
                                 runOnUiThread(new Runnable() {
                                     public void run() {
                                         Toast toast = Toast
@@ -153,10 +169,13 @@ public class MainActivity extends Activity {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    Log.d(TAG, "Down forward");
+                    System.out.println(characteristicTx == null);
                     if (characteristicTx.setValue("F")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    Log.d(TAG, "Up forward");
                     if (characteristicTx.setValue("S")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
@@ -166,14 +185,16 @@ public class MainActivity extends Activity {
         });
 
         backward = (Button) findViewById(R.id.backward);
-        forward.setOnTouchListener(new View.OnTouchListener() {
+        backward.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    Log.d(TAG, "Doun backward");
                     if (characteristicTx.setValue("B")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    Log.d(TAG, "Up backward");
                     if (characteristicTx.setValue("S")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
@@ -183,14 +204,16 @@ public class MainActivity extends Activity {
         });
 
         right = (Button) findViewById(R.id.right);
-        forward.setOnTouchListener(new View.OnTouchListener() {
+        right.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    Log.d(TAG, "Down right");
                     if (characteristicTx.setValue("R")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    Log.d(TAG, "Up right");
                     if (characteristicTx.setValue("S")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
@@ -200,14 +223,16 @@ public class MainActivity extends Activity {
         });
 
         left = (Button) findViewById(R.id.left);
-        forward.setOnTouchListener(new View.OnTouchListener() {
+        left.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    Log.d(TAG, "Down left");
                     if (characteristicTx.setValue("L")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    Log.d(TAG, "Up left");
                     if (characteristicTx.setValue("S")) {
                         mBluetoothLeService.writeCharacteristic(characteristicTx);
                     }
@@ -234,6 +259,7 @@ public class MainActivity extends Activity {
 
         Intent gattServiceIntent = new Intent(MainActivity.this,
                 RBLService.class);
+        Log.d(TAG, gattServiceIntent.toString());
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
         Log.d(TAG, "End onCreate");
@@ -417,5 +443,30 @@ public class MainActivity extends Activity {
         }
 
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_CODE: {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "coarse location permission granted");
+                } else {
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setTitle("Functionality limited");
+                    builder.setMessage("Since location access has not been granted, this app will not be able to discover beacons when in the background.");
+                    builder.setPositiveButton(android.R.string.ok, null);
+                    builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(DialogInterface dialog) {
+                        }
+
+                    });
+                    builder.show();
+                }
+                return;
+            }
+        }
     }
 }
